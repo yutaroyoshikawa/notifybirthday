@@ -34,31 +34,38 @@ const notifySlack = async (users: IUser[]) => {
     console.log(res);
 }
 
-export const checkBirthday = functions.https.onRequest((req, resp) => {
+const aggregateUsers = (snapshot: FirebaseFirestore.QuerySnapshot): IUser[] => {
     const today = new Date();
-    const ref = admin.firestore().collection('users');
     const users: IUser[] = new Array();
+
+    snapshot.docs.forEach(doc => {
+        const birthday: Date = doc.data().birthday.toDate();
+        if(birthday.getDate() === today.getDate() && birthday.getMonth() === today.getMonth()){
+            users.push(
+                {
+                    birthday: doc.data().birthday,
+                    name: doc.id,
+                }
+            );
+        };
+    });
+
+    return users;
+}
+
+export const checkBirthday = functions.https.onRequest((req, resp) => {
+    const ref = admin.firestore().collection('users');
+    
     ref.get()
     .then(snapshot => {
-        snapshot.docs.forEach(doc => {
-            const birthday: Date = doc.data().birthday.toDate();
-            if(birthday.getDate() === today.getDate() && birthday.getMonth() === today.getMonth()){
-                users.push(
-                    {
-                        birthday: doc.data().birthday,
-                        name: doc.id,
-                    }
-                );
-            }
-        });
+        const users = aggregateUsers(snapshot);
         
-        if(users.length === 0) {
+        users.length === 0 ?
             resp.send('ok')
-        } else {
+            :
             notifySlack(users)
-            .then(() => resp.send('ok'))
-            .catch((e) => resp.send('error:' + e));
-        }
+                .then(() => resp.send('ok'))
+                .catch((e) => resp.send('error:' + e))
     })
     .catch((e) => {
         resp.send('error:' + e);
