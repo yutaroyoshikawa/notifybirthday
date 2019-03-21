@@ -2,6 +2,8 @@
 **/*.js
 **/*.js.map
 
+serviceAccountKey.json
+
 # Typescript v1 declaration files
 typings/
 
